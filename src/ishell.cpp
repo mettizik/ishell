@@ -43,6 +43,7 @@
 #include <libimobiledevice/installation_proxy.h>
 #include <libimobiledevice/sbservices.h>
 #include "common/utils.h"
+#include "Handles.h"
 
 #define LOCK_ATTEMPTS 50
 #define LOCK_WAIT 200000
@@ -1545,23 +1546,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	idevice_t device = NULL;
-	if (udid) {
-		ret = idevice_new(&device, udid);
-		if (ret != IDEVICE_E_SUCCESS) {
-			printf("No device found with udid %s, is it plugged in?\n", udid);
-			return -1;
-		}
-	}
-	else
-	{
-		ret = idevice_new(&device, NULL);
-		if (ret != IDEVICE_E_SUCCESS) {
-			printf("No device found, is it plugged in?\n");
-			return -1;
-		}
-		idevice_get_udid(device, &udid);
-	}
+	ishell::handle::Device device;
 
 	if (!source_udid) {
 		source_udid = strdup(udid);
@@ -1571,7 +1556,7 @@ int main(int argc, char *argv[])
 	char *info_path = NULL;
 	if (cmd == CMD_CHANGEPW) {
 		if (!interactive_mode && !backup_password && !newpw) {
-			idevice_free(device);
+
 			printf("ERROR: Can't get password input in non-interactive mode. Either pass password(s) on the command line, or enable interactive mode with -i or --interactive.\n");
 			return -1;
 		}
@@ -1580,7 +1565,7 @@ int main(int argc, char *argv[])
 		info_path = string_build_path(backup_directory, source_udid, "Info.plist", NULL);
 		if (cmd == CMD_RESTORE || cmd == CMD_UNBACK) {
 			if (stat(info_path, &st) != 0) {
-				idevice_free(device);
+
 				free(info_path);
 				printf("ERROR: Backup directory \"%s\" is invalid. No Info.plist found for UDID %s.\n", backup_directory, source_udid);
 				return -1;
@@ -1592,7 +1577,7 @@ int main(int argc, char *argv[])
 			plist_t manifest_plist = NULL;
 			plist_read_from_filename(&manifest_plist, manifest_path);
 			if (!manifest_plist) {
-				idevice_free(device);
+
 				free(info_path);
 				free(manifest_path);
 				printf("ERROR: Backup directory \"%s\" is invalid. No Manifest.plist found for UDID %s.\n", backup_directory, source_udid);
@@ -1618,7 +1603,7 @@ int main(int argc, char *argv[])
 				if (backup_password) {
 					free(backup_password);
 				}
-				idevice_free(device);
+
 				if (cmd == CMD_RESTORE) {
 					printf("ERROR: a backup password is required to restore an encrypted backup. Cannot continue.\n");
 				} else if (cmd == CMD_UNBACK) {
@@ -1632,7 +1617,7 @@ int main(int argc, char *argv[])
 	lockdownd_client_t lockdown = NULL;
 	if (LOCKDOWN_E_SUCCESS != (ldret = lockdownd_client_new_with_handshake(device, &lockdown, "idevicebackup2"))) {
 		printf("ERROR: Could not connect to lockdownd, error code %d\n", ldret);
-		idevice_free(device);
+
 		return -1;
 	}
 
@@ -2377,9 +2362,6 @@ files_out:
 		np_client_free(np);
 		np = NULL;
 	}
-
-	idevice_free(device);
-	device = NULL;
 
 	if (backup_password) {
 		free(backup_password);
